@@ -121,5 +121,11 @@ function defaultProxy (buffer, dist, sock) {
 module.exports = {
   createServer,
   checkVersion,
-  getDistInfo
+  getDistInfo,
+  VER,
+  METHODS,
+  CMD,
+  RSV,
+  ATYPE,
+  REP
 }
