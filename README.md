@@ -4,8 +4,8 @@
 
 ## features
 
-- [*]`CONNECT` command
-- [*] address parsing
+- [x] `CONNECT` command
+- [x] address parsing
 - [ ] authentication
 - [ ] `BIND` command
 - [ ] `UDP ASSOCIATE` command
