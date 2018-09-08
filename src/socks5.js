@@ -6,10 +6,17 @@ const net = require('net')
 
 const VER = 0x05
 
-// auth methods
+// methods
 const METHODS = {
   NO_AUTHENTICATION_REQUIRED: 0x00,
+  USERNAME_PASSWORD: 0x02,
   NO_ACCEPTABLE_METHODS: 0xff
+}
+
+// username/password subnegotiation status
+const STATUS = {
+  SUCCESS: 0x00,
+  FAILURE: 0xff
 }
 
 // command
@@ -30,30 +37,58 @@ const REP = {
 }
 
 function createServer (options = {}) {
-  const {onProxy = defaultProxy} = options
+  const {
+    onProxy = defaultProxy,
+    username,
+    password
+  } = options
 
   const socks = []
 
   // create local server
   const local = net.createServer(sock => {
     sock.on('error', console.error)
-    sock.once('data', accept)
+    sock.once('data', connect)
     sock.once('end', () => socks.splice(socks.indexOf(sock), 1))
 
-    // accept
+    // connect
     // +----+----------+----------+
     // |VER | NMETHODS | METHODS  |
     // +----+----------+----------+
     // | 1  |    1     | 1 to 255 |
     // +----+----------+----------+
-    function accept (buffer) {
-      if (!checkVersion(buffer)) {
-        return sock.end()
-      }
-      if (buffer[1] >= 0) {
+    function connect (buffer) {
+      if (!checkVersion(buffer) || buffer[1] === 0 /* nmethods */) return sock.end()
+      if (username && password) {
+        sock.write(Buffer.from([VER, METHODS.USERNAME_PASSWORD]), () => {
+          sock.once('data', authenticate)
+        })
+      } else {
+        // if no username and password pass in, treat as no authentication
         sock.write(Buffer.from([VER, METHODS.NO_AUTHENTICATION_REQUIRED]), () => {
           sock.once('data', serve)
         })
+      }
+    }
+
+    // authenticate (username/password only)
+    // +----+------+----------+------+----------+
+    // |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
+    // +----+------+----------+------+----------+
+    // | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
+    // +----+------+----------+------+----------+
+    function authenticate (buffer) {
+      if (buffer[0] !== 0x01 /* subnegotiation version */) return sock.end()
+      const uLen = buffer[1]
+      const user = buffer.toString('utf8', 2, 2 + uLen)
+      const pLen = buffer[uLen + 2]
+      const pass = buffer.toString('utf8', uLen + 3, uLen + 3 + pLen)
+      if (username === user && password === pass) {
+        sock.write(Buffer.from([VER, STATUS.SUCCESS]), () => {
+          sock.once('data', serve)
+        })
+      } else {
+        sock.write(Buffer.from([VER, STATUS.FAILURE]))
       }
     }
 
