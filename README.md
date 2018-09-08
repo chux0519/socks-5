@@ -6,6 +6,6 @@
 
 - [x] `CONNECT` command
 - [x] address parsing
-- [ ] authentication
+- [x] authentication ( username / password )
 - [ ] `BIND` command
 - [ ] `UDP ASSOCIATE` command
